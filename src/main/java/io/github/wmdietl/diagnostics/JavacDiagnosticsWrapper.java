@@ -1,6 +1,13 @@
 package io.github.wmdietl.diagnostics;
 
+import com.sun.source.util.TaskEvent;
+import com.sun.source.util.TaskListener;
+import com.sun.tools.javac.api.JavacTaskImpl;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.util.Context;
+
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -20,6 +27,9 @@ import javax.tools.ToolProvider;
  * <p>Based on code examples from: http://openjdk.java.net/groups/compiler/guide/compilerAPI.html
  */
 public abstract class JavacDiagnosticsWrapper {
+    protected String capturedProcessorInfo = "No processor info captured";
+
+    protected Context context;
 
     public void run(String[] args) {
         JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
@@ -35,15 +45,110 @@ public abstract class JavacDiagnosticsWrapper {
         Iterable<? extends JavaFileObject> javaFiles =
                 fileManager.getJavaFileObjectsFromFiles(options.getFiles());
 
-        boolean result =
+        // Create the compilation task.
+        JavaCompiler.CompilationTask task =
                 javac.getTask(
-                                null,
-                                fileManager,
-                                diagnosticCollector,
-                                options.getRecognizedOptions(),
-                                options.getClassNames(),
-                                javaFiles)
-                        .call();
+                        null,
+                        fileManager,
+                        diagnosticCollector,
+                        options.getRecognizedOptions(),
+                        options.getClassNames(),
+                        javaFiles);
+
+        if (task instanceof JavacTaskImpl) {
+            JavacTaskImpl javacTask = (JavacTaskImpl) task;
+            this.context = javacTask.getContext();
+
+            javacTask.addTaskListener(
+                    new TaskListener() {
+                        @Override
+                        public void started(TaskEvent e) {
+                            if (e.getKind() == TaskEvent.Kind.ANNOTATION_PROCESSING_ROUND) {
+                                try {
+                                    JavacProcessingEnvironment procEnv =
+                                            JavacProcessingEnvironment.instance(context);
+                                    Field discoveredProcsField =
+                                            procEnv.getClass().getDeclaredField("discoveredProcs");
+                                    discoveredProcsField.setAccessible(true);
+                                    Object discoveredProcs = discoveredProcsField.get(procEnv);
+
+                                    StringBuilder sb = new StringBuilder();
+                                    if (discoveredProcs != null) {
+                                        // Access the internal "procStateList" field.
+                                        Field procStateListField =
+                                                discoveredProcs
+                                                        .getClass()
+                                                        .getDeclaredField("procStateList");
+                                        procStateListField.setAccessible(true);
+                                        Object procStateListObj =
+                                                procStateListField.get(discoveredProcs);
+                                        if (procStateListObj instanceof List) {
+                                            List<?> procStateList = (List<?>) procStateListObj;
+                                            sb.append("Found ")
+                                                    .append(procStateList.size())
+                                                    .append(" processor state(s):\n");
+                                            for (Object processorState : procStateList) {
+                                                Field processorField =
+                                                        processorState
+                                                                .getClass()
+                                                                .getDeclaredField("processor");
+                                                processorField.setAccessible(true);
+                                                Object processorObj =
+                                                        processorField.get(processorState);
+                                                if (processorObj != null) {
+                                                    String procClassName =
+                                                            processorObj.getClass().getName();
+                                                    sb.append("  - ").append(procClassName);
+                                                    // Attempt to get version info from the
+                                                    // processor's package.
+                                                    Package pkg =
+                                                            processorObj.getClass().getPackage();
+                                                    String version = null;
+                                                    String title = null;
+                                                    String vendor = null;
+                                                    if (pkg != null) {
+                                                        version = pkg.getImplementationVersion();
+                                                        title = pkg.getImplementationTitle();
+                                                        vendor = pkg.getImplementationVendor();
+                                                        if (version == null) {
+                                                            version = pkg.getSpecificationVersion();
+                                                        }
+                                                    }
+                                                    if (version != null) {
+                                                        sb.append(" (version: ").append(version);
+                                                        sb.append(", title: ").append(title);
+                                                        sb.append(", vendor: ").append(vendor);
+                                                        sb.append(")");
+                                                    } else {
+                                                        sb.append(" (version: unknown)");
+                                                    }
+                                                    sb.append("\n");
+                                                } else {
+                                                    sb.append("  - [null processor]\n");
+                                                }
+                                            }
+                                        } else {
+                                            sb.append("procStateList is not a List.\n");
+                                        }
+                                    } else {
+                                        sb.append("discoveredProcs is null.\n");
+                                    }
+                                    capturedProcessorInfo = sb.toString();
+                                } catch (Exception ex) {
+                                    capturedProcessorInfo =
+                                            "Exception capturing processor info: " + ex.toString();
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void finished(TaskEvent e) {
+                            // No-op.
+                        }
+                    });
+        }
+
+        boolean result = task.call();
 
         processDiagnostics(result, diagnosticCollector.getDiagnostics());
     }
