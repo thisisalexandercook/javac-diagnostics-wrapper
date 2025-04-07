@@ -70,6 +70,17 @@ public class CompilationTaskBuilder {
         this.diagnosticListener = listener;
     }
 
+    public DiagnosticCollector<JavaFileObject> getDiagnosticListener() {
+        return this.diagnosticListener;
+    }
+
+    public DiagnosticCollector<JavaFileObject> getOrCreateDiagnosticListener() {
+        if (this.diagnosticListener == null) {
+            this.diagnosticListener = new DiagnosticCollector<>();
+        }
+        return this.diagnosticListener;
+    }
+
     /**
      * Builds a fully configured {@link javax.tools.JavaCompiler.CompilationTask}
      *
