@@ -1,5 +1,7 @@
 package io.github.eisopux.diagnostics.collectors;
 
+import com.sun.source.tree.CompilationUnitTree;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,8 +9,6 @@ import java.util.stream.Collectors;
 
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
-
-import com.sun.source.tree.CompilationUnitTree;
 
 import io.github.eisopux.diagnostics.core.Collector;
 import io.github.eisopux.diagnostics.core.CompilationReportData;

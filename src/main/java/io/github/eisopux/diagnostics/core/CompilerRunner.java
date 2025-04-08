@@ -71,7 +71,6 @@ public class CompilerRunner {
 
         javacTask.generate();
 
-     
         reporter.generateReport(reportData);
     }
 }
