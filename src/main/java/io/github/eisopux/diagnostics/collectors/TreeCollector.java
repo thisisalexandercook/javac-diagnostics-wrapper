@@ -1,5 +1,9 @@
 package io.github.eisopux.diagnostics.collectors;
 
+import com.sun.source.tree.CompilationUnitTree;
+
+import java.util.*;
+
 import javax.tools.JavaFileObject;
 
 import io.github.eisopux.diagnostics.core.Collector;
@@ -20,5 +24,6 @@ public class TreeCollector implements Collector {
     }
 
     @Override
-    public void onAfterCompile(CompilationReportData reportData) {}
+    public void onAfterCompile(
+            CompilationReportData reportData, Iterable<? extends CompilationUnitTree> asts) {}
 }

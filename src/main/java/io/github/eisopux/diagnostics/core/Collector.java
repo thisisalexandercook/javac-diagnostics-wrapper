@@ -1,5 +1,7 @@
 package io.github.eisopux.diagnostics.core;
 
+import com.sun.source.tree.CompilationUnitTree;
+
 /**
  * A Collector is responsible for gathering diagnostic or other compiler-related data during a
  * compilation run.
@@ -25,5 +27,6 @@ public interface Collector {
      * @param reportData the CompilationReportData object into which the Collector should insert its
      *     data
      */
-    void onAfterCompile(CompilationReportData reportData);
+    void onAfterCompile(
+            CompilationReportData reportData, Iterable<? extends CompilationUnitTree> asts);
 }

@@ -1,5 +1,9 @@
 package io.github.eisopux.diagnostics.core;
 
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.util.JavacTask;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,20 +55,23 @@ public class CompilerRunner {
      *
      * @param args the command-line arguments to be used in the compilation task
      */
-    public void run(String[] args) {
+    public void run(String[] args) throws IOException {
 
         CompilationTaskBuilder builder = CompilationTaskBuilder.fromArgs(args);
         collectors.forEach(c -> c.onBeforeCompile(builder));
 
-        JavaCompiler.CompilationTask task = builder.build();
+        JavacTask javacTask = (JavacTask) builder.build();
 
-        boolean success = task.call();
+        Iterable<? extends CompilationUnitTree> asts = javacTask.parse();
+        javacTask.analyze();
 
         CompilationReportData reportData = new CompilationReportData();
 
-        collectors.forEach(c -> c.onAfterCompile(reportData));
+        collectors.forEach(c -> c.onAfterCompile(reportData, asts));
 
-        if (success) {}
+        javacTask.generate();
+
+     
         reporter.generateReport(reportData);
     }
 }

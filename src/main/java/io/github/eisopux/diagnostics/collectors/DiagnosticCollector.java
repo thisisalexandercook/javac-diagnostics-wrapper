@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 
+import com.sun.source.tree.CompilationUnitTree;
+
 import io.github.eisopux.diagnostics.core.Collector;
 import io.github.eisopux.diagnostics.core.CompilationReportData;
 import io.github.eisopux.diagnostics.core.CompilationTaskBuilder;
@@ -26,7 +28,8 @@ public class DiagnosticCollector implements Collector {
     }
 
     @Override
-    public void onAfterCompile(CompilationReportData reportData) {
+    public void onAfterCompile(
+            CompilationReportData reportData, Iterable<? extends CompilationUnitTree> asts) {
         List<Diagnostic<? extends JavaFileObject>> finalDiagnostics =
                 diagCollector.getDiagnostics();
 
